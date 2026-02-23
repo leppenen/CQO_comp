@@ -1,0 +1,230 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usepackage{physics}
+\usepackage{bm}
+\usepackage{pdfpages}
+% Remove the automatic "Figure" label in captions for the presentation
+\usepackage{caption}
+\captionsetup[figure]{labelformat=empty}
+\usepackage{xcolor} % ensure color package available
+\definecolor{ff00ff}{HTML}{FF00FF} % define color #ff00ff
+% Set background to black and all text to white
+\definecolor{highlight}{HTML}{ffdb58} % new highlight color #ffdb58
+\usecolortheme{default}
+% set alerted text color (no bold)
+%\setbeamercolor{alerted text}{bg=highlight}
+% remove any bold setting: do NOT use \setbeamerfont{alerted text}{series=\bfseries}
+% inline highlight: black text on colored background (with small padding)
+\newcommand{\hlbg}[1]{\begingroup\setlength{\fboxsep}{3pt}\colorbox{highlight}{\strut\textbf{\textcolor{black}{#1}}}\endgroup}
+% convenience macro for inline highlighted text (no bold)
+\newcommand{\hl}[1]{{\color{highlight}#1}}
+
+\definecolor{mywhite}{RGB}{255,255,255}
+%\setbeamercolor{background canvas}{bg=white}
+%\setbeamercolor{normal text}{fg=black}
+% Define the blue color for footline
+\definecolor{footlineblue}{HTML}{003DA5}
+
+\setbeamercolor{frametitle}{bg=white, fg=footlineblue}
+%\setbeamercolor{title}{bg=black, fg=mywhite}
+%\setbeamercolor{section in toc}{fg=black}
+%\setbeamercolor{subsection in toc}{fg=black}
+%\setbeamercolor{item}{fg=black}
+%\setbeamercolor{block title}{bg=black, fg=mywhite}
+%\setbeamercolor{block body}{bg=black, fg=mywhite}
+
+% Remove navigation symbols
+\setbeamertemplate{navigation symbols}{}
+
+% Remove the automatic section/subsection TOC at the top of each slide
+\setbeamertemplate{headline}{}
+
+
+% Show current slide number and total number of slides in footline
+
+\definecolor{lightblue}{HTML}{D6E4F0}
+% Show current slide number and total number of slides in footline
+\begin{document}
+
+\title{Chemfarm for collective quantum optics \\ Tutorial 1: Overview and first steps} 
+%\email{nikita.leppanen@weizmann.ac.il}
+\author{Nikita Leppenen}
+\date{February 2026}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{Computers in Weizmann Institute}
+    \begin{columns}
+        \column{0.5\textwidth}
+        \begin{figure}
+            \includegraphics[width=0.8\textwidth]{img/1920px-Weizac_(1954-1964)_Front.png}
+            \caption{Weizmann Institute's first computer, \\ Weizac, built in 1954.}
+        \end{figure}
+        \pause
+        \column{0.5\textwidth}
+        \hlbg{Now}
+        \begin{itemize}
+        \item WEXAC HPC: 34,000 CPU cores, NVidia GPUs, 11000 TB of storage
+        \item Faculty of Math and Computer Science HPC: 2000 CPU cores, NVidia GPUs (with NVidia A 100, 80 GB of memory)
+        \item \textbf{ChemFarm} 31648 CPU cores, 169 TB RAM, 19 nodes with NVidia GPU
+        \end{itemize}
+
+        \vspace{1cm}
+
+        Useful links: \href{https://www.weizmann.ac.il/wit/services/hardware-infrastructure/high-performance-computing-wexac/high-performance-computing-wexac}{WEXAC HPC}, \href{https://www.weizmann.ac.il/chemistry/chemfarm/home}{ChemFarm}\\
+
+        Only from WIS Network: \href{https://cf-wiki.weizmann.ac.il}{ChemFarm Wiki}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{What do people use HPC for?}
+    HPC (High Performance Computing) is used for computationally intensive tasks, such as:
+    \begin{itemize}
+        \item Simulating complex physical systems (e.g., quantum optics, molecular dynamics)
+        \item Data analysis and machine learning (e.g., large datasets, training neural networks)
+        \item Computational chemistry (e.g., quantum chemistry calculations, drug discovery)
+    \end{itemize}
+
+    \pause 
+
+    What my friends do:
+    \begin{columns}
+    \column{0.2\textwidth}
+    \begin{figure}
+        \includegraphics[width=0.5\textwidth]{img/Olga.jpg}
+        \caption{Olga: computational biology (monte carlo simulation of Ising model for decision making)}
+    \end{figure}
+    \column{0.4\textwidth}
+    \begin{figure}
+        \includegraphics[width=0.25\textwidth]{img/Rafail.jpg}
+        \includegraphics[width=0.25\textwidth]{img/Narek.jpg}
+        \caption{Rafail and Narek: machine learning for computer vision (Train large model on many pictures using GPU) }
+    \end{figure}
+    \column{0.2\textwidth}
+    \begin{figure}
+        \includegraphics[width=0.5\textwidth]{img/Diana.jpg}
+        \caption{Diana: condensed matter physics (running DFT calculations for topological materials)}
+    \end{figure}
+    \column{0.2\textwidth}
+    \begin{figure}
+        \includegraphics[width=0.5\textwidth]{img/Dima.jpg}
+        \caption{Dima: machine learning for particle physics (writing code to analyze data from Large Hadron Collider)}
+    \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{What about collective quantum optics?}
+\begin{columns}
+\column{0.33\textwidth}
+\centerline{Solution of Lindblad equation}
+\begin{equation*}
+    \dot{\rho} = {\cal L} \rho
+\end{equation*}
+Size of $\rho$ grows exponentially with the number of atoms (for $N$ two-level atoms, $\rho$ is a $2^N \times 2^N$ matrix). For $N=20$, $\rho$ has $2^{40} \approx 10^{12}$ elements, which is too large to store in memory.
+
+We need to solve to find steady states, dynamics, correlation functions, etc.
+
+\pause
+\column{0.33\textwidth}
+\centerline{Mean-field equations}
+
+\vspace{0.3cm}
+Experiments $N\sim 10^4-10^6$ atoms, so we need to solve mean-field equations for $N$ atoms, which is a system of $3N$ coupled nonlinear ODEs. 
+
+Even at mean-field level computations can be challenging + some new methods (e.g., cluster mean-field, cumulant expansion) require solving even larger systems of equations.
+
+\pause 
+\column{0.33\textwidth}
+\centerline{Large matrix diagonalization}
+
+\vspace{0.9cm}
+Finding ground states and first excited states of many-body Hamiltonians, which is a large matrix diagonalization problem. $N=20$ two-level atoms $\Rightarrow$ $2^{20} = 10^6$ 
+Liouvivillian diagonalization: $4^N \times 4^N$ matrix. For $N=10$ $\Rightarrow$ $2^{20} = 10^6$ $4^{10} = 10^6$
+
+GPUs can be used..
+\end{columns}
+
+\centerline{\hlbg{I believe there are much more and we should discuss}}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Plan for today}
+    \begin{itemize}
+        \item Look through the ChemFarm wiki and documentation to understand the available resources and how to access them
+        \item Show examples of HPC usage in Mean-Field with Green Function
+        \item Outline future directions and opportunities for collaboration
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{ChemFarm Wiki}
+    \begin{itemize}
+        \item \href{https://cf-wiki.weizmann.ac.il}{ChemFarm Wiki} (Weizmann Network) is the main source of information about ChemFarm, including documentation, tutorials, and user guides.
+        \item It contains information on how to access ChemFarm, how to use the job scheduler, and how to run different types of jobs (e.g., CPU, GPU).
+        \item It also has a section with available software ()
+    \end{itemize}
+
+    Connect to cluster: ssh terminal command: \texttt{ssh <username>@chemfarm.weizmann.ac.il} (need to be on WIS network or use VPN); VS Code Remote SSH extension; JupyterHub;
+    
+    We will try OpenOnDemand, JupyterHub, and VS Code Remote SSH today.
+\end{frame}
+\includepdf[pages=1-8]{../materials/collective_atom_photon_slides_8-15.pdf}
+
+
+\begin{frame}
+    \frametitle{Mean-Field in waveguide QED or atomic array/cloud}
+    Denoting $s_n = \ev{\sigma_n^-}$ and $s_n^z = \ev{\sigma_n^z}$ and neglecting quantum correlations, we get the following system of equations for $N$ atoms:
+    \begin{equation}
+\begin{cases}
+    \dot{s}_n = -\frac{\gamma}{2}s_n +s_n^z \qty[\frac{\gamma_{\rm 1D}}{2}\sum_{m\neq n}D_{nm}s_m +i\Omega e^{ikz_n}] \\
+    \dot{s}_n^z = -\gamma(s_n^z+1) - 2\qty[s_n^* \qty(\frac{\gamma_{\rm 1D}}{2}\sum_{m\neq n}D_{nm}s_m +i\Omega e^{ikz_n}) + c.c.]
+\end{cases}
+\end{equation}
+\textbf{Geometry information:} $D_{nm} = -i\frac{3\gamma}{2}\lambda G(\bm r_n - \bm r_m)$
+
+\pause
+\textbf{Problem statement:} solve the system depending on the geometry. Find $s_n(t)$ and $s_n^z(t)$ for $n=1,...,N$ depending on $\Omega$, initial conditions.
+
+\pause
+\textbf{Where HPC comes in:} big memory ($N\sim 10^3$), NumPy for Greens Function, parallelization for parameter scans.  
+
+\pause 
+\textbf{Solution step:} calculate Green function using vectorized code, solve ODEs using \texttt{scipy.integrate.solve\_ivp} (parallelization for parameter scans), run on chemfarm
+\end{frame}
+
+\begin{frame}
+    \frametitle{Parallel solver function}
+    \begin{figure}
+        \includegraphics[width=0.8\textwidth]{img/parallelsolve.png}
+        \caption{n\_workers - number of parallel processes to use}
+    \end{figure}
+\end{frame}
+\begin{frame}
+    \frametitle{Vectorized 1D Greens function}
+    \begin{figure}
+        \includegraphics[width=0.8\textwidth]{img/1d_GF.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{3D lattice with numpy}
+    \begin{figure}
+        \includegraphics[width=0.8\textwidth]{img/3d_mesh.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{3D Greens function with numpy}
+    \begin{figure}
+        \includegraphics[width=0.8\textwidth]{img/3d_GF.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \vspace{-8cm}
+    \hspace{1.5cm}\includegraphics[width=0.8\textwidth]{img/3d_GF.png}
+\end{frame}
+ 
+\end{document}
