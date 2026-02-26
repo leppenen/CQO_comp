@@ -1,0 +1,219 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usepackage{physics}
+\usepackage{bm}
+\usepackage{pdfpages}
+% Remove the automatic "Figure" label in captions for the presentation
+\usepackage{caption}
+\captionsetup[figure]{labelformat=empty}
+\usepackage{xcolor} % ensure color package available
+\definecolor{ff00ff}{HTML}{FF00FF} % define color #ff00ff
+% Set background to black and all text to white
+\definecolor{highlight}{HTML}{ffdb58} % new highlight color #ffdb58
+\usecolortheme{default}
+% set alerted text color (no bold)
+%\setbeamercolor{alerted text}{bg=highlight}
+% remove any bold setting: do NOT use \setbeamerfont{alerted text}{series=\bfseries}
+% inline highlight: black text on colored background (with small padding)
+\newcommand{\hlbg}[1]{\begingroup\setlength{\fboxsep}{3pt}\colorbox{highlight}{\strut\textbf{\textcolor{black}{#1}}}\endgroup}
+% convenience macro for inline highlighted text (no bold)
+\newcommand{\hl}[1]{{\color{highlight}#1}}
+
+\definecolor{mywhite}{RGB}{255,255,255}
+%\setbeamercolor{background canvas}{bg=white}
+%\setbeamercolor{normal text}{fg=black}
+% Define the blue color for footline
+\definecolor{footlineblue}{HTML}{003DA5}
+
+\setbeamercolor{frametitle}{bg=white, fg=footlineblue}
+%\setbeamercolor{title}{bg=black, fg=mywhite}
+%\setbeamercolor{section in toc}{fg=black}
+%\setbeamercolor{subsection in toc}{fg=black}
+%\setbeamercolor{item}{fg=black}
+%\setbeamercolor{block title}{bg=black, fg=mywhite}
+%\setbeamercolor{block body}{bg=black, fg=mywhite}
+
+% Remove navigation symbols
+\setbeamertemplate{navigation symbols}{}
+
+% Remove the automatic section/subsection TOC at the top of each slide
+\setbeamertemplate{headline}{}
+
+
+% Show current slide number and total number of slides in footline
+
+\definecolor{lightblue}{HTML}{D6E4F0}
+% Show current slide number and total number of slides in footline
+\begin{document}
+
+\title{Chemfarm for collective quantum optics \\ Tutorial 2: Master equation and Quantum Jumps} 
+%\email{nikita.leppanen@weizmann.ac.il}
+\author{Nikita Leppenen}
+\date{February 2026}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}
+    \frametitle{Outline for today}
+    \begin{itemize}
+        \item Physics: Master equation and Quantum Trajectory methods
+        
+        \href{https://youtu.be/F4GHy1NcBFY?si=T-jDmrd-uuwJMGHL}{Lecture YouTube} Continuos measurement and Quantum Trajectory 
+        \item Implementation
+        \item Parallelization using Chemfarm
+    \end{itemize}
+\end{frame}
+
+\includepdf[pages=1-8]{../materials/collective_atom_photon_slides_8-15.pdf}
+
+
+\begin{frame}
+    \frametitle{Zoo of Quantum Master equations for superradiance}
+    \begin{subequations}
+    \begin{equation}
+        \pdv{\rho}{t} = -i(H_{\rm eff}\rho -\rho H_{\rm eff}^\dagger) + \sum_{n,m = 1}^N \gamma_{nm} \sigma_n \rho \sigma_m^\dagger
+    \end{equation}
+    \begin{equation}
+        H_{\rm eff} = \sum_n(\Omega_n^* \sigma_n + \Omega_n \sigma_n^\dagger) +\sum_{n,m = 1}^N \qty(\Delta_{nm} - i\frac{\gamma_{nm}}{2}) \sigma_n^\dagger \sigma_m
+    \end{equation}
+    \end{subequations}
+    \pause 
+    Cases:
+    \begin{itemize}
+        \item Driven Dicke model: $\Omega_n = \Omega$, $\Delta_{nm} = \Delta$, $\gamma_{nm} = \gamma$
+        \item Waveguide QED: $\Omega_n = \Omega e^{ikx_n}$, $\Delta_{nm} = \frac{\gamma_{\rm 1D}}{2}\sin(k|z_n-z_m|)$, $\gamma_{nm} = \gamma_{\rm 1D}\cos(k|z_n-z_m|)$
+        \item Waveguide QED with individual decay: $\Omega_n = \Omega e^{ikx_n}$, $\Delta_{nm} = \frac{\gamma_{\rm 1D}}{2}\sin(k|z_n-z_m|)$, $\gamma_{nm} = \gamma_{\rm 1D}\cos(k|z_n-z_m|) + \gamma_{\rm s}\delta_{nm}$
+        \item Cavity $z_n = n\lambda$
+        \item Free space; 2D array; 3D array, etc. 
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Methods for solving the master equation}
+    \begin{equation}
+        \dot{\rho} = \mathcal{L} \rho, \qquad \mathcal{L} \in \text{Mat}(d^2, d^2), \qquad \text{Non-Hermitian symmetric matrix}
+    \end{equation}
+    \vspace{0.2 cm}
+    \begin{columns}
+        \column{0.33\textwidth}
+        Differential equation solvers: Runge--Kutta, adaptive step size, etc. (Qutip \texttt{mesolve}, SciPy \texttt{solve\_ivp})
+        
+        \hlbg{Boring but straightforward}
+
+        For steady state: solve $\mathcal{L}\rho_{\rm ss} = 0$ (Qutip \texttt{steadystate}, SciPy \texttt{null\_space})
+
+        \hlbg{Boring but accessible}
+        
+        \pause
+        \column{0.33\textwidth}
+        Diagonalization: $\rho(t) = e^{\mathcal{L}t}\rho(0)$, eigenvalues of $\mathcal{L}$ give decay rates and oscillation frequencies (Qutip \texttt{eigenstates}, SciPy \texttt{eig})
+
+        \hlbg{Today or Next time}
+
+        Only a few eigenvalues are relevant for long-time dynamics, so we can use sparse diagonalization (SciPy \texttt{eigs}) 
+
+        \hlbg{Very intresing: next time}
+
+        \pause 
+        \column{0.33\textwidth}
+        Quantum Trajectories: \\ Monte Carlo wavefunction method, unraveling the master equation into stochastic trajectories of pure states (Qutip \texttt{mcsolve})
+
+        \hlbg{Today}
+
+        MPS + MPO methods (Tensor)
+
+        \hlbg{Very advanced...}
+    \end{columns}
+    
+\end{frame}
+
+\begin{frame}
+    \frametitle{Runge--Kutta time stepping}
+    Goal: solve $\dot{y} = f(t,y)$ by stepping forward in time.
+    \begin{equation}
+        k_1 = f(t,y), \quad k_2 = f\!\left(t+\tfrac{h}{2},\, y+\tfrac{h}{2}k_1\right), \quad k_3 = f\!\left(t+\tfrac{h}{2},\, y+\tfrac{h}{2}k_2\right), \quad k_4 = f(t+h,\, y+h k_3)
+    \end{equation}
+    \begin{equation}
+        y(t+h) = y(t) + \tfrac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)
+    \end{equation}
+    \begin{itemize}
+        \item RK4 is 4th order: local error $\sim h^5$, global error $\sim h^4$
+        \item Adaptive RK uses error estimates to adjust $h$ automatically
+        \item In master equations, set $y = \mathrm{vec}(\rho)$ and solve $\dot{y} = \mathcal{L} y$
+    \end{itemize}
+    \centerline{\scriptsize Python direct implementation: \href{https://qutip.org/docs/4.2/guide/dynamics/dynamics-master.html}{Qutip \texttt{mesolve}}; SciPy \texttt{solve\_ivp} with method='RK45' or 'RK23'}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{Driven Dicke model}
+        $\Omega_n = \Omega$, $\Delta_{nm} = \Delta$, $\gamma_{nm} = \gamma$
+
+    Master equation:
+    \begin{equation}
+        \pdv{\rho}{t} = -i\Omega\sum_n [\sigma_n + \sigma_n^\dagger, \rho] - i\Delta\sum_{n,m} [\sigma_n^\dagger \sigma_m, \rho] + \gamma\sum_{n,m} \qty(\sigma_n \rho \sigma_m^\dagger - \frac{1}{2}\{\sigma_n^\dagger \sigma_m, \rho\})
+    \end{equation}
+    \pause
+    Collective spin operators: $S^\alpha = \sum_n \sigma_n^\alpha$; $S^+ = \sum_n \sigma_n^+$; $S^- = \sum_n \sigma_n^-$
+    \begin{equation}
+        \pdv{\rho}{t} = -i\Omega [S^x, \rho] - i\Delta [S^+ S^-, \rho] + \gamma\qty(S^- \rho S^+ - \frac{1}{2}\{S^+ S^-, \rho\})
+    \end{equation}
+    \pause 
+    Non-Hermitian Hamiltonian: $H_{\rm eff} = \Omega S^x + \Delta S^+ S^- - i\frac{\gamma}{2} S^+ S^-$
+
+    Master equation: $$\pdv{\rho}{t} = -i(H_{\rm eff}\rho - \rho H_{\rm eff}^\dagger) + \gamma S^- \rho S^+$$
+\end{frame}
+\begin{frame}
+    \frametitle{Revealing the master equation with Quantum Trajectories}
+    \begin{equation}
+        \rho(t+\dd t) = \rho(t) - i(H_{\rm eff}\rho -\rho H_{\rm eff}^\dagger)\dd t + \gamma S^- \rho S^+ \dd t
+    \end{equation}
+    Krauss operators: $K_0 = 1 - iH_{\rm eff}\dd t$, $K_1 = \sqrt{\gamma \dd t} S^-$
+    \begin{equation}
+        \rho(t+\dd t) = K_0 \rho K_0^\dagger + K_1 \rho K_1^\dagger
+    \end{equation}
+    \pause
+    Assume the system is in a pure state $\ket{\psi}$ at time $t$. Then we can write the state at time $t+\dd t$ as:
+    \begin{equation}
+        \ket{\psi(t+\dd t)} = \begin{cases}
+            \frac{K_0 \ket{\psi}}{\norm{K_0 \ket{\psi}}} & \text{with probability } p_0 = \norm{K_0 \ket{\psi}}^2 \\
+            \frac{K_1 \ket{\psi}}{\norm{K_1 \ket{\psi}}} & \text{with probability } p_1 = \norm{K_1 \ket{\psi}}^2  
+        \end{cases}
+    \end{equation}
+    \pause
+    Dynamics: $\rho(t+\dd t) = p_0 \ket{\psi_0}\bra{\psi_0} + p_1 \ket{\psi_1}\bra{\psi_1}$, where $\ket{\psi_0} = \frac{K_0 \ket{\psi}}{\norm{K_0 \ket{\psi}}}$ and $\ket{\psi_1} = \frac{K_1 \ket{\psi}}{\norm{K_1 \ket{\psi}}}$
+\end{frame}
+
+\begin{frame}
+    \frametitle{Algorithm for Quantum Trajectories: Monte Carlo wavefunction method}
+    {\scriptsize Realization in Python: \href{https://qutip.org/docs/4.5/guide/dynamics/dynamics-monte.html}{Qutip \texttt{mcsolve}}}
+    \begin{enumerate}
+        \item Initialize the system in a pure state $\ket{\psi_0}$
+        \item Evolve the state under the non-Hermitian Hamiltonian $H_{\rm eff}$ for a time step $\dd t$: $\ket{\psi'} = e^{-iH_{\rm eff}\dd t} \ket{\psi}$
+        \item Calculate the norm of the evolved state: $p_0 = \norm{\ket{\psi'}}^2$
+        \item Generate a random number $r$ uniformly distributed in the interval $[0,1]$
+        \item If $r < p_0$, the system evolves to $\ket{\psi_0} = \frac{\ket{\psi'}}{\norm{\ket{\psi'}}}$ (no jump occurs)
+        \item If $r \ge p_0$, a quantum jump occurs, and the system evolves to $\ket{\psi_1} = \frac{K_1 \ket{\psi}}{\norm{K_1 \ket{\psi}}}$ (jump occurs)
+        \item Repeat steps 2-6 for the desired number of time steps. Average over many trajectories to obtain the density matrix $\rho(t) = \frac{1}{N_{\rm traj}} \sum_{i=1}^{N_{\rm traj}} \ket{\psi_i(t)}\bra{\psi_i(t)}$
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Advantages of the method} 
+    \begin{itemize}
+        \item Computational efficiency: The method allows for efficient simulation of open quantum systems by reducing the computational complexity associated with the density matrix formalism. Instead of evolving a density matrix, which has a size that scales as the square of the Hilbert space dimension, we evolve pure states, which scale linearly with the Hilbert space dimension.
+        \item Physical insight: The method provides a clear physical picture of the dynamics of open quantum systems. The quantum jumps correspond to discrete events that can be interpreted as measurements or interactions with the environment, allowing for a more intuitive understanding of the system's behavior.
+        \item Flexibility: The method can be applied to a wide range of open quantum systems, including those with time-dependent Hamiltonians, multiple decay channels, and non-Markovian dynamics.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Implementation}
+    \begin{enumerate}
+        \item JupyterHub on ChemFarm: Notebook with example on Dicke model (Qutip \texttt{mcsolve})
+        \item Python script for cavity model + PBS submission script for running on ChemFarm
+    \end{enumerate}
+\end{frame}
+\end{document}
