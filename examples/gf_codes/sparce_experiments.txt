@@ -1,0 +1,81 @@
+Sparse Matrix Realization Study for Effective 2D Green's Function
+
+Goal
+- Quantify how sparsifying the 3D coupling matrix G_nm changes the effective 2D Green's function obtained from z-chain summation rules.
+- Identify a sparsity regime that gives large memory/time savings while preserving the physics.
+
+Main Questions
+- When does sparse G_nm reproduce dense-baseline effective 2D couplings?
+- Which sparsification method is most robust (cutoff, threshold, top-k, hybrid)?
+- How sensitive are results to az/lambda near 1 (translation-invariant regime)?
+
+Baseline Setup
+1. Start with dense runs where feasible:
+	- nx = ny = 5
+	- nz = 500, 1000 -- cluster 
+	- ax = ay = 0.5*lambda, az = 1.0*lambda (then vary ax and ay)
+2. Compute dense G_nm and D_nm.
+3. Build effective 2D couplings by summing along z-chains:
+	- same-chain term (excluding self in z)
+	- inter-chain term (sum over full z-chain)
+4. Save this as reference data for error analysis.
+
+Sparsification Schemes to Test
+1. Distance cutoff:
+	- Keep entries with r <= r_cut
+2. Magnitude threshold:
+	- Keep entries with |G_nm| >= tau
+3. Row-wise top-k:
+	- Keep k strongest couplings per row
+4. Hybrid:
+	- Keep all near-field couplings (r <= r_near) + threshold in far field
+
+Parameter Sweep (Priority Order)
+1. Geometry / finite-size:
+	- nz: 100, 200, 500, 1000
+	- nx, ny: 3, 5, 7 (if feasible)
+2. xy-spacing control:
+	- ax/lambda, ay/lambda: 0.125, 0.25, 0.5, 1(critical for translational invariance)
+3. Sparsity control:
+	- r_cut/lambda: 2, 3, 5, 8
+	- tau chosen for target sparsities: 90%, 95%, 98%, 99% zeros
+	- top-k: k = 20, 50, 100, 200
+
+Metrics to Track
+1. Effective 2D matrix error:
+	- rel_F_error = ||G2D_sparse - G2D_dense||_F / ||G2D_dense||_F
+2. Spectral error:
+	- Compare leading eigenvalues/eigenvectors of gamma_nm and Delta_nm
+
+3. Physical constraints:
+	- Reciprocity/symmetry checks
+	- Dissipative matrix positivity (gamma should be PSD within numerical tolerance)
+4. Compute cost:
+	- Wall time, peak memory, nnz/total entries
+
+Suggested Execution Phases
+Phase 1 (Calibration)
+- Run dense + sparse for nz = 100, 200
+- Map error vs sparsity for each method
+- Select best 1-2 methods
+
+Phase 2 (Translation-Invariance Focus)
+- Sweep az/lambda around 1.0
+- Quantify TI violation metric vs sparsity
+- Identify safe region where TI is preserved
+
+Phase 3 (Large-Scale Validation)
+- Run selected sparse methods at nz = 500, 1000 on cluster
+- Compare against dense extrapolation / partial dense references
+
+Pass/Fail Criteria (Initial)
+- rel_F_error <= 5% for effective 2D matrix
+- Leading collective mode eigenvalues within <= 5% relative error
+- TI violation metric does not increase by more than 2x vs dense baseline
+- Runtime and memory reduced by at least 5x
+
+Important Notes
+- Hard distance cutoffs can distort long-range collective modes even if entrywise error looks small.
+- Always evaluate spectral observables, not only elementwise matrix error.
+- For large runs, save intermediate diagnostics (nnz, memory estimate, timing) per parameter point.
+
